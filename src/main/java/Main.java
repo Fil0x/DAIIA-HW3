@@ -23,9 +23,8 @@ public class Main {
         // Create agent containers
         AgentContainer c1 = rt.createAgentContainer(new ProfileImpl());
         for (int i = 0; i < boardSize; i++) {
-            c1.createNewAgent("Q" + i, "QueenAgent", new Object[]{ i, boardSize }).start();
+            c1.createNewAgent("q" + i, "QueenAgent", new Object[]{ ""+i, ""+boardSize }).start();
         }
-        c1.createNewAgent("starter", "StartGame", new Object[]{}).start();
 
 //        AgentContainer c2 = rt.createAgentContainer(new ProfileImpl());
 //        for (int i = 0; i < 1; i++) {
