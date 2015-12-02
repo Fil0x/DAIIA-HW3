@@ -21,24 +21,28 @@ import java.util.TreeSet;
 
 public class QueenAgent extends Agent {
 
-    private final int BOARD_SIZE;
+    private int BOARD_SIZE;
 
     private int id, pos;
     private List<Integer> predPos;
     private Set<Integer> triedPos;
 
-    public QueenAgent(int id, int boardSize)  {
-        super();
+    protected void setup() {
 
-        this.id = id;
+
+
+        Object[] args = getArguments();
+        if (args == null){
+            System.err.println("WHAT THE FUCK");
+        }
+        System.out.println("Num args: " + args.length);
+        this.id = Integer.valueOf((String)args[0]);
         this.predPos = new ArrayList<>();
         this.triedPos = new TreeSet<>();
-        this.BOARD_SIZE = boardSize;
+        this.BOARD_SIZE = Integer.valueOf((String) args[1]);
 
         addBehaviour(new DoOnReceive(this));
-    }
 
-    protected void setup() {
         System.out.println("QueenAgent: " + id + " has started.");
 
         // Register queen N to the DF
@@ -53,6 +57,19 @@ public class QueenAgent extends Agent {
             DFService.register(this, dfd);
         } catch (FIPAException e) {
             e.printStackTrace();
+        }
+
+        if (id == 0){
+            doWait(2000);
+            ACLMessage start = new ACLMessage(ACLMessage.INFORM);
+            try {
+                start.setContentObject(new ArrayList<Integer>());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            start.addReceiver(getAID());
+            start.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
+            send(start);
         }
     }
 
