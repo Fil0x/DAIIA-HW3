@@ -26,6 +26,7 @@ public class QueenAgent extends Agent {
     private int id, pos;
     private List<Integer> predPos;
     private Set<Integer> triedPos;
+    private int solNum = 1;
 
     protected void setup() {
 
@@ -127,10 +128,21 @@ public class QueenAgent extends Agent {
                 AID succ = getSucc();
                 if(succ == null) {
                     // we have found a solution
-                    System.out.println("We did it ladiez");
-                    System.out.println("Results:");
-                    predPos.add(new_pos);
-                    System.out.println(predPos);
+
+                    System.out.println("Solution " + solNum++);
+                    ArrayList<Integer> solution = new ArrayList<>(predPos);
+                    solution.add(new_pos);
+                    triedPos.add(new_pos);
+                    pprint(solution);
+                    ACLMessage backtrack = new ACLMessage(ACLMessage.REQUEST);
+                    AID pred = getPred();
+                    if (pred == null){
+                        System.out.println("We did it ladiez");
+                    } else {
+                        backtrack.addReceiver(getPred());
+                        send(backtrack);
+                    }
+
                 }
                 else {
                     ACLMessage go = new ACLMessage(ACLMessage.INFORM);
@@ -175,6 +187,27 @@ public class QueenAgent extends Agent {
             return successor;
         }
 
+        private void pprint(List<Integer> results) {
+            StringBuilder s = new StringBuilder();
+
+            for (int i = 0; i < results.size(); i++)
+                s.append(" _");
+            s.append("\n");
+            for(int col = 0; col < results.size(); col++) {
+                for (int row = 0; row < results.size(); row++) {
+                    s.append("|");
+                    if (results.get(row) == col) {
+                        s.append(row);
+                    } else {
+                        s.append("_");
+                    }
+                }
+                s.append("|\n");
+            }
+
+            System.out.println(s.toString());
+        }
+
         private AID getPred() {
             AID pred;
             DFAgentDescription dfd = new DFAgentDescription();
@@ -206,7 +239,7 @@ public class QueenAgent extends Agent {
             //reply.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
             // GO MESSAGE
             if(msg.getPerformative() == ACLMessage.INFORM) {
-                System.out.println("Queen: "+id+" got \"GO\" mesage");
+                //System.out.println("Queen: "+id+" got \"GO\" mesage");
                 try {
                     // Get the positions from the message
                     predPos = (List<Integer>)msg.getContentObject();
@@ -219,7 +252,7 @@ public class QueenAgent extends Agent {
             }
             // BACKTRACK MESSAGE
             else if(msg.getPerformative() == ACLMessage.REQUEST) {
-                System.out.println("Queen: "+id+" got \"BACKTRACK\" mesage");
+                //System.out.println("Queen: "+id+" got \"BACKTRACK\" mesage");
                 move(msg);
             }
 
