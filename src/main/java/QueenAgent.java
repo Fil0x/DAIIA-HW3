@@ -35,7 +35,6 @@ public class QueenAgent extends Agent {
         if (args == null){
             System.err.println("WHAT THE FUCK");
         }
-        System.out.println("Num args: " + args.length);
         this.id = Integer.valueOf((String)args[0]);
         this.predPos = new ArrayList<>();
         this.triedPos = new TreeSet<>();
@@ -68,7 +67,7 @@ public class QueenAgent extends Agent {
                 e.printStackTrace();
             }
             start.addReceiver(getAID());
-            start.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
+            //start.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
             send(start);
         }
     }
@@ -79,15 +78,16 @@ public class QueenAgent extends Agent {
 
     private class DoOnReceive extends MsgReceiver {
         public DoOnReceive(Agent a) {
-            super(a, MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST),
+            super(a, MessageTemplate.MatchAll(), //IPANames.InteractionProtocol.FIPA_REQUEST),
                     MsgReceiver.INFINITE, new DataStore(), "key");
         }
 
         private boolean isSafe(List<Integer> prev, int row, int col) {
-            int b = row + col;
+            int bDown = row + col;
+            int bUp = row - col;
             for (int i = 0; i < prev.size(); i++) {
                 // Diagonals
-                if(prev.get(i) == (i + b) || prev.get(i) == (-i + b)) // y = x + b, y = -x + b
+                if(prev.get(i) == (i + bUp) || prev.get(i) == (-i + bDown)) // y = x + b, y = -x + b
                     return false;
                 // Rows
                 else if(prev.get(i) == row)
@@ -109,13 +109,19 @@ public class QueenAgent extends Agent {
         }
 
         private void move(ACLMessage request) {
+
             int new_pos = findNextPos(predPos, triedPos);
 
             if(new_pos == -1) {
                 // BACKTRACK
-                ACLMessage reply = request.createReply();
-                reply.setPerformative(ACLMessage.REQUEST);
-                send(reply);
+                AID pred = getPred();
+                if (pred == null){
+                    System.out.println("Could not find solution.");
+                } else {
+                    ACLMessage backtrack = new ACLMessage(ACLMessage.REQUEST);
+                    backtrack.addReceiver(pred);
+                    send(backtrack);
+                }
             }
             else {
                 AID succ = getSucc();
@@ -123,10 +129,12 @@ public class QueenAgent extends Agent {
                     // we have found a solution
                     System.out.println("We did it ladiez");
                     System.out.println("Results:");
+                    predPos.add(new_pos);
                     System.out.println(predPos);
                 }
                 else {
                     ACLMessage go = new ACLMessage(ACLMessage.INFORM);
+                    //go.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
                     go.addReceiver(succ);
                     triedPos.add(new_pos);
                     // Copy the current list and add ourselves
@@ -167,12 +175,38 @@ public class QueenAgent extends Agent {
             return successor;
         }
 
+        private AID getPred() {
+            AID pred;
+            DFAgentDescription dfd = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("queen");
+            sd.setName("" + (id - 1));
+            dfd.addServices(sd);
+            DFAgentDescription[] result = new DFAgentDescription[0];
+            try {
+                result = DFService.search(getAgent(), dfd);
+            } catch (FIPAException e) {
+                e.printStackTrace();
+            }
+            if (result.length > 0) {
+                // We have a successor
+                pred = result[0].getName();
+            }
+            else {
+                // Last one
+                pred = null;
+            }
+
+            return pred;
+        }
+
         @Override
         protected void handleMessage(ACLMessage msg) {
             ACLMessage reply = msg.createReply();
-            reply.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
+            //reply.setProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
             // GO MESSAGE
             if(msg.getPerformative() == ACLMessage.INFORM) {
+                System.out.println("Queen: "+id+" got \"GO\" mesage");
                 try {
                     // Get the positions from the message
                     predPos = (List<Integer>)msg.getContentObject();
@@ -185,6 +219,7 @@ public class QueenAgent extends Agent {
             }
             // BACKTRACK MESSAGE
             else if(msg.getPerformative() == ACLMessage.REQUEST) {
+                System.out.println("Queen: "+id+" got \"BACKTRACK\" mesage");
                 move(msg);
             }
 
