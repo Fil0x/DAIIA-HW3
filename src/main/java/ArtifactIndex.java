@@ -8,7 +8,7 @@ public class ArtifactIndex{
      This request comes from the platform.
      For now we just return random artifacts.
     */
-    public List<Integer> searchArtifactIDs(List<String> interests){
+    public synchronized List<Integer> searchArtifactIDs(List<String> interests){
         //TODO dummy implementation
         ArrayList<Integer> result = new ArrayList<>();
         result.add(Utilities.getArtifact().getId());
@@ -25,7 +25,7 @@ public class ArtifactIndex{
      This request comes from the Profiler.
      For now we just return random artifacts.
     */
-    public List<Artifact> searchArtifacts(List<Integer> artifactIDs){
+    public synchronized List<Artifact> searchArtifacts(List<Integer> artifactIDs){
         //TODO dummy implementation
         ArrayList<Artifact> result = new ArrayList<>();
         result.add(Utilities.getArtifact());

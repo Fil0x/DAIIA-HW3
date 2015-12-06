@@ -25,7 +25,8 @@ public class MainClone {
         AgentContainer c2 = rt.createAgentContainer(p2);
 
         cm.createNewAgent("rma", "jade.tools.rma.rma", new Object[]{}).start();
-        cm.createNewAgent(CloningCuratorAgent.ORIGINAL, "CloningCuratorAgent", new Object[]{}).start();
+        cm.createNewAgent("original-curator-1", "CloningCuratorAgent", new Object[]{"1"}).start();
+        cm.createNewAgent("original-curator-2", "CloningCuratorAgent", new Object[]{"2"}).start();
         cm.createNewAgent(CloningArtifactManagerAgent.ORIGINAL, "CloningArtifactManagerAgent", new Object[]{}).start();
     }
 }

@@ -1,6 +1,7 @@
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.ContainerID;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.NotUnderstoodException;
@@ -17,59 +18,89 @@ import jade.proto.SimpleAchieveREResponder;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 
 
 public class CloningCuratorAgent extends Agent {
-    private static final String NAME = "(CloningCurator)";
     static final String CONTAINER_HM = "container-hm";
     static final String CONTAINER_MG = "container-mg";
-    static final String ORIGINAL = "originalCloningCurator";
 
+    private String name;
     private String senderType;
-    private AID sender;
-    private ArtifactIndex artifactIndex = new ArtifactIndex();
+    static String originalName;
+    private String serviceName;
 
-    // A single state FSM(for now) that works like a cyclic behaviour.
-    // The only behaviour is to wait for requests from either the profiler or platform.
     public CloningCuratorAgent(){
         super();
 
         MessageTemplate mtartifact = MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_REQUEST);
-        MessageTemplate mtauction = MessageTemplate.and(
-                MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET),
-                MessageTemplate.MatchPerformative(ACLMessage.CFP));
 
         addBehaviour(new ArtifactRequestREResponder(this, mtartifact));
-        addBehaviour(new AuctionREResponder(this, mtauction));
     }
 
     protected void setup(){
+        name = "(" + getLocalName() + ")";
+        Object[] args = getArguments();
+        originalName = "original-curator-" + (String) args[0];
+
+        addBehaviour(new OneShotBehaviour() {
+            @Override
+            public void action() {
+                if (getLocalName().equals(originalName)) {
+                    ContainerID c = new ContainerID();
+                    c.setName(CloningCuratorAgent.CONTAINER_HM);
+                    serviceName = "curator-HM";
+                    doClone(c, "curator-agent-HM-" + args[0]);
+                    // clonesCreated++;
+                }
+            }
+        });
+
+        addBehaviour(new OneShotBehaviour() {
+            @Override
+            public void action() {
+                if (getLocalName().equals(originalName)) {
+                    ContainerID c = new ContainerID();
+                    c.setName(CloningCuratorAgent.CONTAINER_MG);
+                    serviceName = "curator-MG";
+                    doClone(c, "curator-agent-MG-" + args[0]);
+                    // clonesCreated++;
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void beforeClone() {
+        System.out.println(name + " Creating a clone...");
+    }
+
+    @Override
+    protected void afterClone() {
+        name = "(" + getLocalName() + ")";
+
         // Register both services to DF
         // Register interest for auctions
-        ServiceDescription sd3 = new ServiceDescription();
-        sd3.setType("auction-bidder");
-        sd3.setName("auction-participator");
-        sd3.addOntologies("bid-in-auctions");
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType("auction-bidder");
+        sd.setName(serviceName);
+        sd.addOntologies("bid-in-auctions");
 
         DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());
-        dfd.addServices(sd3);
+        dfd.addServices(sd);
         try {
             DFService.register(this, dfd);
         } catch (FIPAException e) {
             e.printStackTrace();
         }
-    }
 
-    @Override
-    protected void beforeClone() {
-        System.out.println(NAME + " Creating two clones...");
-    }
-
-    @Override
-    protected void afterClone() {
-        System.out.println(NAME + " Clones sent to containers");
+        // Add the behaviour
+        MessageTemplate mtauction = MessageTemplate.and(
+                MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET),
+                MessageTemplate.MatchPerformative(ACLMessage.CFP));
+        addBehaviour(new AuctionREResponder(this, mtauction));
     }
 
     @Override
@@ -90,12 +121,10 @@ public class CloningCuratorAgent extends Agent {
             senderType = request.getEnvelope().getComments();
             if ("platform".equals(senderType)){
                 reply.setPerformative(ACLMessage.AGREE);
-
             } else if ("profiler".equals(senderType)){
                 reply.setPerformative(ACLMessage.AGREE);
             } else {
                 reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
-
             }
             return reply;
         }
@@ -108,7 +137,7 @@ public class CloningCuratorAgent extends Agent {
                 User u;
                 try {
                     u = (User)request.getContentObject();
-                    reply.setContentObject((Serializable)artifactIndex.searchArtifactIDs(u.getInterests()));
+                    reply.setContentObject((Serializable)(new ArtifactIndex()).searchArtifactIDs(u.getInterests()));
 
                 } catch (UnreadableException e) {
                     System.err.println("(Curator) Could not deserialize user");
@@ -120,7 +149,7 @@ public class CloningCuratorAgent extends Agent {
                 List<Integer> artifactIDs;
                 try {
                     artifactIDs = (List<Integer>)request.getContentObject();
-                    reply.setContentObject((Serializable)artifactIndex.searchArtifacts(artifactIDs));
+                    reply.setContentObject((Serializable)(new ArtifactIndex()).searchArtifacts(artifactIDs));
                 } catch (UnreadableException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
