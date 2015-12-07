@@ -4,6 +4,7 @@ import jade.core.ContainerID;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.FSMBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -47,7 +48,6 @@ public class CloningArtifactManagerAgent extends Agent {
     private volatile ACLMessage msgToSend;
     private Artifact itemToSell;
     private ArrayList<AID> buyers;
-    private boolean done;
     private String serviceName;
 
     private String itemTitleSold;
@@ -55,7 +55,7 @@ public class CloningArtifactManagerAgent extends Agent {
     private AID originalAuctioneer;
 
     protected void setup() {
-        doWait(4000);
+        doWait(3500);
         System.out.println("Agent:" + getAID().getName() + " is ready!");
         name = "(" + getLocalName() + ")";
         originalAuctioneer = getAID();
@@ -73,7 +73,7 @@ public class CloningArtifactManagerAgent extends Agent {
                     ContainerID c = new ContainerID();
                     c.setName(CloningCuratorAgent.CONTAINER_HM);
                     serviceName = "curator-HM";
-                    doClone(c, "auction-agent-1");
+                    myAgent.doClone(c, "auction-agent-1");
                 }
            }
         });
@@ -86,7 +86,7 @@ public class CloningArtifactManagerAgent extends Agent {
                     ContainerID c = new ContainerID();
                     c.setName(CloningCuratorAgent.CONTAINER_MG);
                     serviceName = "curator-MG";
-                    doClone(c, "auction-agent-2");
+                    myAgent.doClone(c, "auction-agent-2");
                 }
             }
         });

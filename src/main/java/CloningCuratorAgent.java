@@ -2,6 +2,7 @@ import jade.core.AID;
 import jade.core.Agent;
 import jade.core.ContainerID;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.WakerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.NotUnderstoodException;
@@ -29,7 +30,7 @@ public class CloningCuratorAgent extends Agent {
 
     private String name;
     private String senderType;
-    static String originalName;
+    private String originalName;
 
     private String serviceName;
     private AID originalCurator;
@@ -114,6 +115,36 @@ public class CloningCuratorAgent extends Agent {
     @Override
     protected void afterMove() {
         System.out.println(name + ": ARRIVED");
+        // send a message to the original curator
+        // Wait for the clones to return and report the results
+        /*addBehaviour(new OneShotBehaviour() {
+            @Override
+            public void action() {
+                if(!getLocalName().equals(ORIGINAL))
+                    removeBehaviour(this);
+                if(getLocalName().equals(ORIGINAL)) {
+                    System.out.println("Waiting for auctions to finish...");
+                    boolean done = false;
+                    int receivedMessages = 0;
+                    while(!done) {
+                        MessageTemplate template = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+                        ACLMessage reply = blockingReceive(template);
+                        if(reply != null) {
+                            String content = reply.getContent();
+                            String item = content.split(",")[0];
+                            int price = Integer.parseInt(content.split(",")[1]);
+                            String sender = reply.getSender().getLocalName();
+                            if(item.equals("null"))
+                                System.out.println(name + ": " + sender + " no sale");
+                            else
+                                System.out.println(name + ": " + sender + " sold " + item + "@" + price);
+                            receivedMessages++;
+                        }
+                        done = receivedMessages == 2;
+                    }
+                }
+            }
+        });*/
     }
 
     private class ArtifactRequestREResponder  extends SimpleAchieveREResponder {
