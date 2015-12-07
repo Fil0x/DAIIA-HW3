@@ -244,9 +244,9 @@ public class CloningCuratorAgent extends Agent {
             System.out.println("Agent "+getLocalName()+": I won the auction");
             ACLMessage inform = accept.createReply();
             inform.setPerformative(ACLMessage.INFORM);
-            ContainerID c = new ContainerID();
+            /*ContainerID c = new ContainerID();
             c.setName(originalContainer);
-            doMove(c);
+            doMove(c);*/
             return inform;
         }
 
