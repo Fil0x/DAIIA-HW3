@@ -14,6 +14,7 @@ import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 import jade.proto.ContractNetResponder;
 import jade.proto.SimpleAchieveREResponder;
+import jade.wrapper.ControllerException;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,7 +30,10 @@ public class CloningCuratorAgent extends Agent {
     private String name;
     private String senderType;
     static String originalName;
+
     private String serviceName;
+    private AID originalCurator;
+    private String originalContainer;
 
     public CloningCuratorAgent(){
         super();
@@ -42,7 +46,13 @@ public class CloningCuratorAgent extends Agent {
     protected void setup(){
         name = "(" + getLocalName() + ")";
         Object[] args = getArguments();
-        originalName = "original-curator-" + (String) args[0];
+        originalName = "original-curator-" + args[0];
+        originalCurator = getAID();
+        try {
+            originalContainer = getContainerController().getContainerName();
+        } catch (ControllerException e) {
+            e.printStackTrace();
+        }
 
         addBehaviour(new OneShotBehaviour() {
             @Override
@@ -52,7 +62,6 @@ public class CloningCuratorAgent extends Agent {
                     c.setName(CloningCuratorAgent.CONTAINER_HM);
                     serviceName = "curator-HM";
                     doClone(c, "curator-agent-HM-" + args[0]);
-                    // clonesCreated++;
                 }
             }
         });
@@ -65,7 +74,6 @@ public class CloningCuratorAgent extends Agent {
                     c.setName(CloningCuratorAgent.CONTAINER_MG);
                     serviceName = "curator-MG";
                     doClone(c, "curator-agent-MG-" + args[0]);
-                    // clonesCreated++;
                 }
             }
         });
@@ -73,7 +81,7 @@ public class CloningCuratorAgent extends Agent {
 
     @Override
     protected void beforeClone() {
-        System.out.println(name + " Creating a clone...");
+        System.out.println(name + ": Creating a clone...");
     }
 
     @Override
@@ -105,7 +113,7 @@ public class CloningCuratorAgent extends Agent {
 
     @Override
     protected void afterMove() {
-
+        System.out.println(name + ": ARRIVED");
     }
 
     private class ArtifactRequestREResponder  extends SimpleAchieveREResponder {
@@ -117,15 +125,14 @@ public class CloningCuratorAgent extends Agent {
         protected ACLMessage prepareResponse(ACLMessage request){
             ACLMessage reply = request.createReply();
             //System.out.println("(Curator) preparing response to request from: " + request.getSender().getLocalName());
-            ////System.out.println("(Curator) with content: " + request.getContent());
+            //System.out.println("(Curator) with content: " + request.getContent());
             senderType = request.getEnvelope().getComments();
-            if ("platform".equals(senderType)){
+            if ("platform".equals(senderType))
                 reply.setPerformative(ACLMessage.AGREE);
-            } else if ("profiler".equals(senderType)){
+            else if ("profiler".equals(senderType))
                 reply.setPerformative(ACLMessage.AGREE);
-            } else {
+            else
                 reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
-            }
             return reply;
         }
 
@@ -178,15 +185,15 @@ public class CloningCuratorAgent extends Agent {
             double proposal = new Random().nextDouble();
             if (proposal < BID_MARGIN) {
                 // Retrieve the item and its price
-                int price = 0;
+                /*int price = 0;
                 String name = "";
                 try {
                     Artifact a = (Artifact) cfp.getContentObject();
-                    name = a.getName();
-                    price = a.getPrice();
+                    // name = a.getName();
+                    // price = a.getPrice();
                 } catch (UnreadableException e) {
                     e.printStackTrace();
-                }
+                }*/
                 // We provide a proposal
                 // System.out.println("Agent "+getLocalName()+": Proposing " + proposal + " Item:" +  name + "@" + price);
                 ACLMessage propose = cfp.createReply();
@@ -206,11 +213,14 @@ public class CloningCuratorAgent extends Agent {
             System.out.println("Agent "+getLocalName()+": I won the auction");
             ACLMessage inform = accept.createReply();
             inform.setPerformative(ACLMessage.INFORM);
+            ContainerID c = new ContainerID();
+            c.setName(originalContainer);
+            doMove(c);
             return inform;
         }
 
         protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
-            System.out.println("Agent "+getLocalName()+": Proposal rejected");
+            System.out.println("Agent "+getLocalName()+": Proposal REJECTED");
         }
     }
 }

@@ -10,6 +10,7 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.MessageTemplate;
 import jade.proto.ContractNetInitiator;
 import jade.wrapper.ControllerException;
 
@@ -38,9 +39,8 @@ public class CloningArtifactManagerAgent extends Agent {
 
     //State
     //Used by the clones to report back
-    private static int itemsSold = 0;
     private static volatile int clonesReturned = 0;
-    private int clonesCreated;
+
     private int leastAcceptablePrice;
     private int reductionStep;
     private int nResponders;
@@ -50,10 +50,15 @@ public class CloningArtifactManagerAgent extends Agent {
     private boolean done;
     private String serviceName;
 
+    private String itemTitleSold;
+    private int itemPriceSold;
+    private AID originalAuctioneer;
+
     protected void setup() {
-        doWait(1500);
+        doWait(4000);
         System.out.println("Agent:" + getAID().getName() + " is ready!");
         name = "(" + getLocalName() + ")";
+        originalAuctioneer = getAID();
         try {
             originalContainer = getContainerController().getContainerName();
         } catch (ControllerException e) {
@@ -69,7 +74,6 @@ public class CloningArtifactManagerAgent extends Agent {
                     c.setName(CloningCuratorAgent.CONTAINER_HM);
                     serviceName = "curator-HM";
                     doClone(c, "auction-agent-1");
-                    clonesCreated++;
                 }
            }
         });
@@ -83,7 +87,6 @@ public class CloningArtifactManagerAgent extends Agent {
                     c.setName(CloningCuratorAgent.CONTAINER_MG);
                     serviceName = "curator-MG";
                     doClone(c, "auction-agent-2");
-                    clonesCreated++;
                 }
             }
         });
@@ -92,14 +95,31 @@ public class CloningArtifactManagerAgent extends Agent {
         msgToSend = new ACLMessage(ACLMessage.CFP);
 
         // Wait for the clones to return and report the results
-        addBehaviour(new CyclicBehaviour() {
+        addBehaviour(new OneShotBehaviour() {
             @Override
             public void action() {
                 if(!getLocalName().equals(ORIGINAL))
                     removeBehaviour(this);
-                if (!done && 2 == clonesReturned) {
-                    System.out.println(name +": My trusty clones sold " + itemsSold + " items.");
-                    done = !done;
+                if(getLocalName().equals(ORIGINAL)) {
+                    System.out.println("Waiting for auctions to finish...");
+                    boolean done = false;
+                    int receivedMessages = 0;
+                    while(!done) {
+                        MessageTemplate template = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+                        ACLMessage reply = blockingReceive(template);
+                        if(reply != null) {
+                            String content = reply.getContent();
+                            String item = content.split(",")[0];
+                            int price = Integer.parseInt(content.split(",")[1]);
+                            String sender = reply.getSender().getLocalName();
+                            if(item.equals("null"))
+                                System.out.println(name + ": " + sender + " no sale");
+                            else
+                                System.out.println(name + ": " + sender + " sold " + item + "@" + price);
+                            receivedMessages++;
+                        }
+                        done = receivedMessages == 2;
+                    }
                 }
             }
         });
@@ -135,6 +155,13 @@ public class CloningArtifactManagerAgent extends Agent {
     @Override
     protected void afterMove() {
         clonesReturned++;
+
+        ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+        msg.setSender(getAID());
+        msg.setContent(itemTitleSold+","+ itemPriceSold);
+        msg.addReceiver(originalAuctioneer);
+        send(msg);
+        // doDelete();
     }
 
     private class StartAuction extends OneShotBehaviour {
@@ -154,7 +181,7 @@ public class CloningArtifactManagerAgent extends Agent {
                 reductionStep = (int) (0.1 * itemToSell.getPrice());
                 System.out.println(name + ": " + itemToSell.getName() + "@" + itemToSell.getPrice());
                 // Wait for the other agents to boot
-                doWait((new Random()).nextInt(1000) + 2000);
+                doWait((new Random()).nextInt(1000) + 500);
                 // Get the interested buyers-curators
                 DFAgentDescription dfd = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
@@ -235,7 +262,8 @@ public class CloningArtifactManagerAgent extends Agent {
             if (accept != null) {
                 // System.out.println(name + ": Accepting proposal "+bestProposal+" from responder "+winner.getName());
                 accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                itemsSold++;
+                itemTitleSold = itemToSell.getName();
+                itemPriceSold = itemToSell.getPrice();
             }
             else {
                 int newPrice = itemToSell.getPrice() - reductionStep;
@@ -272,7 +300,6 @@ public class CloningArtifactManagerAgent extends Agent {
         @Override
         public void action() {
             System.out.println(name + ": Auction Completed.");
-
 
             ContainerID c = new ContainerID();
             c.setName(originalContainer);
